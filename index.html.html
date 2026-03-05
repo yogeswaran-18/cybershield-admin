@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cyber Shield — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyBStoxxMnIqNEQP76XauKdEyQId1yP7wPw",
+    authDomain: "cyber-shield-4da7f.firebaseapp.com",
+    projectId: "cyber-shield-4da7f",
+    storageBucket: "cyber-shield-4da7f.firebasestorage.app",
+    messagingSenderId: "34701902127",
+    appId: "1:34701902127:web:87752b71561255f4f421da",
+    measurementId: "G-3M336CZH1G"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const q = query(collection(db, "phishing_reports"), orderBy("timestamp", "desc"));
+  onSnapshot(q, (snapshot) => {
+    const reports = [];
+    snapshot.forEach(d => reports.push({ id: d.id, ...d.data() }));
+    window._allReports = reports;
+    document.getElementById("demoBanner").style.display = "none";
+    renderDashboard(reports);
+  }, (err) => {
+    renderDashboard(window._demoData);
+  });
+  window.updateStatus = async (id, status) => {
+    try { await updateDoc(doc(db, "phishing_reports", id), { status }); showToast("Status updated ✓"); }
+    catch(e) { showToast("Error updating", true); }
+  };
+  window.deleteReport = async (id) => {
+    if (!confirm("Delete this report?")) return;
+    try { await deleteDoc(doc(db, "phishing_reports", id)); showToast("Deleted ✓"); }
+    catch(e) { showToast("Error deleting", true); }
+  };
+</script>
+<style>
+:root{--bg:#f0f4f8;--white:#fff;--navy:#0a1628;--blue:#1a6bff;--blue-light:#e8f0ff;--red:#ff3b3b;--red-light:#fff0f0;--orange:#ff8c00;--orange-light:#fff4e0;--green:#00c853;--green-light:#e6fff0;--gray:#6b7a99;--border:#e2e8f4;--text:#1a2340;--shadow:0 2px 16px rgba(10,22,40,0.08);--shadow-lg:0 8px 40px rgba(10,22,40,0.14);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;}
+.topbar{background:var(--navy);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,0.3);}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#1a6bff,#00c9ff);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.logo-text{font-size:1.2rem;font-weight:800;color:white;}
+.logo-text span{color:#4fc3f7;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.live-badge{display:flex;align-items:center;gap:7px;background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.3);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;color:#00c853;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#00c853;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.admin-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:20px;font-size:13px;color:rgba(255,255,255,0.8);}
+.main{padding:32px;max-width:1400px;margin:0 auto;}
+.page-title{margin-bottom:28px;}
+.page-title h1{font-size:1.9rem;font-weight:800;color:var(--navy);margin-bottom:4px;}
+.page-title p{color:var(--gray);font-size:.95rem;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-bottom:28px;}
+.stat-card{background:var(--white);border-radius:18px;padding:22px 24px;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;align-items:center;gap:16px;transition:transform .2s,box-shadow .2s;}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
+.stat-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.stat-info{flex:1;}
+.stat-value{font-size:2rem;font-weight:800;line-height:1;margin-bottom:4px;}
+.stat-label{font-size:.82rem;color:var(--gray);font-weight:500;}
+.toolbar{background:var(--white);border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;box-shadow:var(--shadow);border:1px solid var(--border);}
+.search-box{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 16px;}
+.search-box input{border:none;background:transparent;font-family:'Outfit',sans-serif;font-size:.9rem;color:var(--text);outline:none;width:100%;}
+.search-box input::placeholder{color:var(--gray);}
+.filter-btn{padding:10px 18px;border-radius:10px;border:1px solid var(--border);background:var(--bg);font-family:'Outfit',sans-serif;font-size:.85rem;font-weight:600;color:var(--gray);cursor:pointer;transition:all .2s;}
+.filter-btn:hover,.filter-btn.active{background:var(--blue);color:white;border-color:var(--blue);}
+.refresh-btn{padding:10px 18px;border-radius:10px;border:none;background:var(--navy);font-family:'Outfit',sans-serif;font-size:.85rem;font-weight:600;color:white;cursor:pointer;transition:all .2s;}
+.refresh-btn:hover{background:var(--blue);}
+.table-card{background:var(--white);border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
+.table-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.table-title{font-size:1rem;font-weight:700;color:var(--navy);}
+.count-badge{background:var(--blue-light);color:var(--blue);font-size:.8rem;font-weight:700;padding:4px 12px;border-radius:20px;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:#f8fafd;border-bottom:1px solid var(--border);}
+th{padding:13px 20px;text-align:left;font-size:.78rem;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+td{padding:16px 20px;font-size:.88rem;border-bottom:1px solid #f0f4f8;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr{transition:background .15s;}
+tbody tr:hover{background:#f8faff;}
+.url-cell{display:flex;align-items:center;gap:10px;}
+.url-icon{width:34px;height:34px;background:var(--red-light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.url-text{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--red);font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.78rem;font-weight:700;white-space:nowrap;}
+.status-badge::before{content:'';width:6px;height:6px;border-radius:50%;}
+.badge-danger{background:var(--red-light);color:var(--red);}
+.badge-danger::before{background:var(--red);}
+.badge-warning{background:var(--orange-light);color:var(--orange);}
+.badge-warning::before{background:var(--orange);}
+.badge-safe{background:var(--green-light);color:#00a843;}
+.badge-safe::before{background:var(--green);}
+.badge-pending{background:#f0f0f0;color:#666;}
+.badge-pending::before{background:#999;}
+.reporter{display:flex;align-items:center;gap:8px;}
+.reporter-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#00c9ff);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+.reporter-name{font-size:.85rem;color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.time-cell{font-size:.82rem;color:var(--gray);white-space:nowrap;}
+.actions{display:flex;gap:6px;align-items:center;}
+.action-btn{padding:6px 12px;border-radius:8px;border:none;font-family:'Outfit',sans-serif;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-verify{background:var(--green-light);color:#00a843;}
+.btn-verify:hover{background:var(--green);color:white;}
+.btn-safe{background:var(--blue-light);color:var(--blue);}
+.btn-safe:hover{background:var(--blue);color:white;}
+.btn-delete{background:var(--red-light);color:var(--red);}
+.btn-delete:hover{background:var(--red);color:white;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--gray);}
+.empty-state .empty-icon{font-size:3rem;margin-bottom:14px;}
+.empty-state h3{font-size:1.1rem;font-weight:700;margin-bottom:6px;color:var(--navy);}
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:30px;right:30px;background:var(--navy);color:white;padding:14px 22px;border-radius:12px;font-size:.88rem;font-weight:600;box-shadow:var(--shadow-lg);transform:translateY(80px);opacity:0;transition:all .3s;z-index:999;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.error{background:var(--red);}
+.demo-banner{background:linear-gradient(135deg,#fff4e0,#fff8ec);border:1px solid #ffd580;border-radius:14px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:.88rem;color:#7a4f00;}
+@media(max-width:768px){.main{padding:16px;}.topbar{padding:0 16px;}.stats-grid{grid-template-columns:repeat(2,1fr);}th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5){display:none;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <div class="logo-text">Cyber<span>Shield</span> Admin</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div> Live Data</div>
+    <div class="admin-chip">👤 Admin</div>
+  </div>
+</div>
+<div class="main">
+  <div class="page-title">
+    <h1>Phishing Reports Dashboard</h1>
+    <p>All reported phishing URLs — updated in real time from Firebase</p>
+  </div>
+  <div class="demo-banner" id="demoBanner">⚠️ <div><strong>Demo Mode:</strong> Showing sample data. Connect Firebase to see real reports.</div></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon" style="background:#fff0f0">🚨</div><div class="stat-info"><div class="stat-value" id="statTotal" style="color:var(--red)">0</div><div class="stat-label">Total Reports</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fff4e0">⚠️</div><div class="stat-info"><div class="stat-value" id="statPending" style="color:var(--orange)">0</div><div class="stat-label">Pending Review</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fff0f0">🔴</div><div class="stat-info"><div class="stat-value" id="statDanger" style="color:var(--red)">0</div><div class="stat-label">Confirmed Phishing</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#e6fff0">✅</div><div class="stat-info"><div class="stat-value" id="statSafe" style="color:var(--green)">0</div><div class="stat-label">Marked Safe</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#e8f0ff">👥</div><div class="stat-info"><div class="stat-value" id="statReporters" style="color:var(--blue)">0</div><div class="stat-label">Unique Reporters</div></div></div>
+  </div>
+  <div class="toolbar">
+    <div class="search-box"><span>🔍</span><input type="text" id="searchInput" placeholder="Search by URL or email..." oninput="filterReports()"></div>
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('confirmed_phishing',this)">🔴 Phishing</button>
+    <button class="filter-btn" onclick="setFilter('pending',this)">⚠️ Pending</button>
+    <button class="filter-btn" onclick="setFilter('safe',this)">✅ Safe</button>
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><div class="table-title">📋 Phishing Reports</div><div class="count-badge" id="visibleCount">0 reports</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Suspicious URL</th><th>Reported By</th><th>Status</th><th>Date & Time</th><th>Actions</th></tr></thead>
+        <tbody id="tableBody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray)"><span class="spinner"></span> Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+window._demoData=[
+  {id:"d1",url:"fake-hdfc-login.com",reported_by:"priya@gmail.com",status:"confirmed_phishing",timestamp:{seconds:Date.now()/1000-3600}},
+  {id:"d2",url:"sbi-account-verify.xyz",reported_by:"ravi@yahoo.com",status:"confirmed_phishing",timestamp:{seconds:Date.now()/1000-7200}},
+  {id:"d3",url:"paytm-cashback-offer.net",reported_by:"meena@outlook.com",status:"pending",timestamp:{seconds:Date.now()/1000-10800}},
+  {id:"d4",url:"amazon-prize-winner.co",reported_by:"suresh@gmail.com",status:"pending",timestamp:{seconds:Date.now()/1000-14400}},
+  {id:"d5",url:"google.com",reported_by:"lakshmi@gmail.com",status:"safe",timestamp:{seconds:Date.now()/1000-18000}},
+  {id:"d6",url:"icicidirect-login-verify.com",reported_by:"anand@gmail.com",status:"confirmed_phishing",timestamp:{seconds:Date.now()/1000-21600}},
+  {id:"d7",url:"whatsapp-gold-download.apk.site",reported_by:"kavya@hotmail.com",status:"pending",timestamp:{seconds:Date.now()/1000-25200}},
+  {id:"d8",url:"govt-subsidy-apply-now.in",reported_by:"vijay@gmail.com",status:"confirmed_phishing",timestamp:{seconds:Date.now()/1000-28800}},
+];
+window._allReports=window._demoData;
+window._currentFilter='all';
+setTimeout(()=>renderDashboard(window._demoData),500);
+function renderDashboard(reports){
+  if(!reports)return;
+  window._allReports=reports;
+  const total=reports.length;
+  const pending=reports.filter(r=>!r.status||r.status==='pending').length;
+  const danger=reports.filter(r=>r.status==='confirmed_phishing').length;
+  const safe=reports.filter(r=>r.status==='safe').length;
+  const reporters=new Set(reports.map(r=>r.reported_by)).size;
+  animateCount('statTotal',total);
+  animateCount('statPending',pending);
+  animateCount('statDanger',danger);
+  animateCount('statSafe',safe);
+  animateCount('statReporters',reporters);
+  filterReports();
+}
+function filterReports(){
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  const filter=window._currentFilter||'all';
+  const reports=window._allReports||[];
+  let filtered=reports.filter(r=>{
+    const matchSearch=!search||(r.url||'').toLowerCase().includes(search)||(r.reported_by||'').toLowerCase().includes(search);
+    const matchFilter=filter==='all'||r.status===filter||(filter==='pending'&&(!r.status||r.status==='pending'));
+    return matchSearch&&matchFilter;
+  });
+  renderTable(filtered);
+}
+function setFilter(f,btn){
+  window._currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  filterReports();
+}
+function renderTable(reports){
+  const tbody=document.getElementById('tableBody');
+  document.getElementById('visibleCount').textContent=`${reports.length} report${reports.length!==1?'s':''}`;
+  if(reports.length===0){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div><h3>No reports found</h3><p>Try changing your search or filter</p></div></td></tr>`;return;}
+  tbody.innerHTML=reports.map((r,i)=>{
+    const status=r.status||'pending';
+    const bc=status==='confirmed_phishing'?'badge-danger':status==='safe'?'badge-safe':status==='suspicious'?'badge-warning':'badge-pending';
+    const bl=status==='confirmed_phishing'?'🔴 Confirmed Phishing':status==='safe'?'✅ Safe':status==='suspicious'?'⚠️ Suspicious':'⏳ Pending Review';
+    const time=formatTime(r.timestamp);
+    const initials=(r.reported_by||'UN').substring(0,2).toUpperCase();
+    const url=r.url||'Unknown URL';
+    return `<tr>
+      <td style="color:var(--gray);font-size:.82rem;font-weight:600">${i+1}</td>
+      <td><div class="url-cell"><div class="url-icon">🔗</div><div class="url-text" title="${url}">${url}</div></div></td>
+      <td><div class="reporter"><div class="reporter-avatar">${initials}</div><div class="reporter-name">${r.reported_by||'Unknown'}</div></div></td>
+      <td><span class="status-badge ${bc}">${bl}</span></td>
+      <td><div class="time-cell">${time}</div></td>
+      <td><div class="actions">
+        ${status!=='confirmed_phishing'?`<button class="action-btn btn-verify" onclick="updateStatus('${r.id}','confirmed_phishing')">🚨 Flag</button>`:''}
+        ${status!=='safe'?`<button class="action-btn btn-safe" onclick="updateStatus('${r.id}','safe')">✅ Safe</button>`:''}
+        <button class="action-btn btn-delete" onclick="deleteReport('${r.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function formatTime(ts){
+  if(!ts)return'—';
+  let date;
+  if(ts.seconds)date=new Date(ts.seconds*1000);
+  else if(ts.toDate)date=ts.toDate();
+  else date=new Date(ts);
+  if(isNaN(date))return'—';
+  const now=new Date();
+  const diff=Math.floor((now-date)/1000);
+  if(diff<60)return'Just now';
+  if(diff<3600)return`${Math.floor(diff/60)} min ago`;
+  if(diff<86400)return`${Math.floor(diff/3600)} hr ago`;
+  return date.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+function animateCount(id,target){
+  const el=document.getElementById(id);
+  const start=parseInt(el.textContent)||0;
+  const duration=600;
+  const startTime=performance.now();
+  const update=(now)=>{
+    const elapsed=now-startTime;
+    const progress=Math.min(elapsed/duration,1);
+    el.textContent=Math.floor(start+(target-start)*progress);
+    if(progress<1)requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
+}
+function showToast(msg,isError=false){
+  const toast=document.getElementById('toast');
+  toast.textContent=msg;
+  toast.className='toast show'+(isError?' error':'');
+  setTimeout(()=>toast.className='toast',3000);
+}
+</script>
+</body>
+</html>
